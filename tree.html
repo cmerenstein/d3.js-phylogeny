@@ -185,21 +185,36 @@
 			}		
 		}
 		
+		function makeAncestors(leaf){
+			var temp = leaf.parent;
+			var ancestors = [];
+			while (temp.parent) {
+				ancestors.unshift(temp.id);
+				temp = temp.parent;
+			}
+			leaf.ancestors = ancestors;
+			console.log(ancestors);
+		}
+		
 		function colorRelated() {
-			var prior = "Eukaryota";
-			var one_node_tax = relatedNodes[0].taxonomy;
-			console.log(one_node_tax);
+			relatedNodes.forEach(function (d) {
+				makeAncestors(d);
+			});
+			
+			var prior = 0;
+			var one_node_ancestors = relatedNodes[0].ancestors;
+			console.log(one_node_ancestors);
 			var j = 0;
-			while (j < 20) {
+			while (j < 25) {
 				relatedNodes.slice(1,relatedNodes.length).forEach(function(d){
-					console.log(d.taxonomy[j] + "  " + one_node_tax[j]);
+					console.log(d.ancestors[j] + "  " + one_node_ancestors[j]);
 					
-					if (d.taxonomy[j] != one_node_tax[j]){
-						j = 21; // to break out of the while
+					if (d.ancestors[j] != one_node_ancestors[j]){
+						j = 26; // to break out of the while
 					}
 				});
-				if (j < 20) {
-					prior = one_node_tax[j];
+				if (j < 25) {
+					prior = one_node_ancestors[j];
 				}
 				j++;
 				//console.log(prior);
@@ -269,7 +284,7 @@
 
 			nodeUpdate.select("circle")
 					.attr("r", function (d) {
-							if (d.species == lca) {return 5;} else {return 2.5;}
+							if (d.id == lca) {return 5;} else {return 2.5;}
 						})
 					.attr("fill", function (d) {
 						if (relatedNodes.indexOf(d) != -1) {return "red"; } else {return "dodgerblue";}
