@@ -8,7 +8,8 @@
 
     #tooltip{
     position:absolute;
-    width:100px;
+    width:auto;
+	max-width: 400px;
     height:auto;
     padding:10px;
     background-color:white;
@@ -70,7 +71,11 @@
 					if (+d.number == +number) {
 						node.species = d.species;
 						node.taxonomy = d.taxonomy.split("|")
-						node.taxonomyStr = d.taxonomy;
+						taxonomyStr = ""
+						node.taxonomy.forEach(function (q) {
+							taxonomyStr = taxonomyStr + " | " + q;
+						});
+						node.taxonomyStr = taxonomyStr;
 					}
 				});
 				//return "";
@@ -80,6 +85,7 @@
 			//console.log(root_node);
 			var leaves = [];
 			var commonTaxonomy = [];
+			var commonTaxonomyStr = "";
 			root_node.children = root_node.branchset
 			if (typeof root_node.branchset == "undefined") {
 				findSpecies(root_node);
@@ -100,6 +106,7 @@
 					// here we assume only 2 children. Didn't make that assuumption earlier but looking closer at our data, it is true.
 					if (leaves[0][i] == leaves[1][i]) {
 						commonTaxonomy.push(leaves[0][i]);
+						commonTaxonomyStr = commonTaxonomyStr + " | " + leaves[0][i];
 					} else {
 						break;
 					}
@@ -107,6 +114,7 @@
 			}
 			root_node.taxonomy = commonTaxonomy;
 			root_node.species = commonTaxonomy[commonTaxonomy.length - 1];
+			root_node.taxonomyStr = commonTaxonomyStr;
 			console.log(commonTaxonomy);
 			return commonTaxonomy;
 		};
@@ -200,19 +208,12 @@
 				.attr("fill", "dodgerblue")
 				.on("mouseover", function(d){
 				      var tooltip = d3.select("#tooltip");
-	                  var coordinates = d3.mouse(vis.node());
-	                  console.log(coordinates);
-	                  var bbox = vis.node().getBoundingClientRect();
-
-	                  coordinates[0] += bbox.left;
-	                  console.log(coordinates[0]);
-	                  coordinates[1] += bbox.top;
-
-	                  d3.select("#name").text("hello");   //d.name or something
+	                 
+	                  d3.select("#name").text(d.taxonomyStr);   //d.name or something
 	                  
 	                  tooltip.style({
-	                    left: (coordinates[0] + 25) + "px",
-	                    top: (coordinates[1] ) + "px",
+	                    left: (d.y - 60) + "px",
+	                    top: (d.x + 90 ) + "px",
 	                  })
 	                  .classed("hidden", false);
 	               })
