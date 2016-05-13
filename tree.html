@@ -44,7 +44,7 @@
 
     <!-- tooltip div -->
     <div id="tooltip" class="hidden">
-      Name: <span id="name"></span>
+      Taxonomy: <span id="name"></span>
     </div>
 
 <!-- Copyright 2011 Jason Davies https://github.com/jasondavies/newick.js -->
@@ -55,6 +55,9 @@
 		var height = 2000;   
 		var duration = 0;
 		
+		var relatedNodes = []; // global variable for relatedness feature.
+ 		var lca; // last common ancenstor
+
 		var vis = d3.select("body").append("svg")
 			.attr("width" , width)
 			.attr("height", height)
@@ -133,7 +136,7 @@
 				
 			
 		function adjustLength(n, offset) {
-			  if (n.length != null) offset += n.length * 200;
+			  if (n.length != null) offset += n.length * 400;
 			  n.y = offset;
 			  if (n.children)
 				n.children.forEach(function(n) {
@@ -156,15 +159,20 @@
 		}
 		
 		function click(d){
-			console.log(d.children);
-
+			// this part is for the collapsing
 			if (d.children) {
-				//console.log(d.children);
 				d.children = null;
 			  } else {
 				d.children = d.branchset;
-				//console.log(d.children);
 			  }
+			
+			// this part is for relatedness feature
+			if (!d.branchset) {
+				relatedNodes.push(d);
+			}
+			if (relatedNodes.length > 1) {
+				colorRelated();
+			}
 			  update(d);
 		}
 
@@ -175,6 +183,29 @@
 			else {
 				return node.species;
 			}		
+		}
+		
+		function colorRelated() {
+			var prior = "Eukaryota";
+			var one_node_tax = relatedNodes[0].taxonomy;
+			console.log(one_node_tax);
+			var j = 0;
+			while (j < 20) {
+				relatedNodes.slice(1,relatedNodes.length).forEach(function(d){
+					console.log(d.taxonomy[j] + "  " + one_node_tax[j]);
+					
+					if (d.taxonomy[j] != one_node_tax[j]){
+						j = 21; // to break out of the while
+					}
+				});
+				if (j < 20) {
+					prior = one_node_tax[j];
+				}
+				j++;
+				//console.log(prior);
+			}
+			
+			lca = prior;
 		}
 		
 		var update = function (source) {
@@ -237,7 +268,12 @@
 			  .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
 
 			nodeUpdate.select("circle")
-					.attr("r", 2);
+					.attr("r", function (d) {
+							if (d.species == lca) {return 5;} else {return 2.5;}
+						})
+					.attr("fill", function (d) {
+						if (relatedNodes.indexOf(d) != -1) {return "red"; } else {return "dodgerblue";}
+					});
     
 			nodeUpdate.select("text")
 				.style("fill-opacity", 1)
@@ -287,6 +323,7 @@
 			d.x0 = d.x;
 			d.y0 = d.y;
 			});
+			
 		};
 		update(root);
       });
