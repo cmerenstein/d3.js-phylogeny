@@ -53,7 +53,7 @@
     <script>
 		var width = 2000; // determines height of tree.
 		var height = 2000;   
-		var duration = 0;
+		var duration = 700;
 		
 		var relatedNodes = []; // global variable for relatedness feature.
  		var lca; // last common ancenstor
@@ -79,6 +79,7 @@
 							taxonomyStr = taxonomyStr + " | " + q;
 						});
 						node.taxonomyStr = taxonomyStr;
+						node.cool_name = d.cool_name;
 					}
 				});
 				//return "";
@@ -134,7 +135,8 @@
 		console.log(root);
 		
 				
-			
+		// This changes the y values to be based off of the actual relatedness distance
+		// also an offset seemed potentially helpful, so it's there.
 		function adjustLength(n, offset) {
 			  if (n.length != null) offset += n.length * 400;
 			  n.y = offset;
@@ -168,13 +170,30 @@
 			
 			// this part is for relatedness feature
 			if (!d.branchset) {
-				relatedNodes.push(d);
+				var nodeIndex = relatedNodes.indexOf(d);
+				if(nodeIndex == -1){
+					relatedNodes.push(d);
+				}else{
+					relatedNodes.splice(nodeIndex, 1);
+					traverseAncestors(d, false); // this is for dehighlighting
+					
+				}
+
 			}
 			if (relatedNodes.length > 1) {
 				colorRelated();
+				relatedNodes.forEach(function (leaf) {
+					traverseAncestors(leaf, true);
+					});
+			} else {
+				lca = undefined;
+				relatedNodes.forEach(function (leaf) {
+					traverseAncestors(leaf, false);
+					});
 			}
 			  update(d);
 		}
+
 
 		function name(node){
 			if (node.children) {
@@ -187,7 +206,7 @@
 		
 		function makeAncestors(leaf){
 			var temp = leaf.parent;
-			var ancestors = [];
+			var ancestors = [leaf.id];
 			while (temp.parent) {
 				ancestors.unshift(temp.id);
 				temp = temp.parent;
@@ -196,6 +215,15 @@
 			console.log(ancestors);
 		}
 		
+		function traverseAncestors(leaf, set_inpath){
+			while (leaf.id != lca) {
+				//console.log(leaf);
+				leaf.in_path = set_inpath;
+				leaf = leaf.parent;
+			}
+		}
+		
+		// This is poorly named. It really just sets the LCA
 		function colorRelated() {
 			relatedNodes.forEach(function (d) {
 				makeAncestors(d);
@@ -205,7 +233,7 @@
 			var one_node_ancestors = relatedNodes[0].ancestors;
 			console.log(one_node_ancestors);
 			var j = 0;
-			while (j < 25) {
+			while (j < 25) { // arbitrary number, deeper than all leaves
 				relatedNodes.slice(1,relatedNodes.length).forEach(function(d){
 					console.log(d.ancestors[j] + "  " + one_node_ancestors[j]);
 					
@@ -219,8 +247,8 @@
 				j++;
 				//console.log(prior);
 			}
-			
 			lca = prior;
+			
 		}
 		
 		var update = function (source) {
@@ -287,7 +315,7 @@
 							if (d.id == lca) {return 5;} else {return 2.5;}
 						})
 					.attr("fill", function (d) {
-						if (relatedNodes.indexOf(d) != -1) {return "red"; } else {return "dodgerblue";}
+						if (relatedNodes.indexOf(d) != -1 || d.id == lca) {return "red"; } else {return "dodgerblue";}
 					});
     
 			nodeUpdate.select("text")
@@ -300,8 +328,8 @@
 			// don't actually remove exit set, just put it under the parent
 			var nodeExit = node.exit().transition()
 			  .duration(duration)
-			  .attr("transform", function(d) {return "translate(" + source.y + "," + source.x + ")"; })
-			  .remove();
+			  .attr("transform", function(d) {return "translate(" + source.y + "," + source.x + ")"; });
+			  //.remove();
 			// make circle really small 
 			nodeExit.select("circle")
 			  .attr("r", 1e-6);
@@ -310,7 +338,11 @@
 			  .style("fill-opacity", 1e-6);
 			// update the links
 			var link = vis.selectAll("path.link")
-				.data(links, function(d) { return d.target.id; });
+				.data(links, function(d) { return d.target.id; })
+				.attr("stroke", function(d) { 
+					if(d.target.in_path) { return "red";} else {return "black";}		})
+				.attr("stroke-width", function(d) { 
+					if(d.target.in_path) { return "2px";} else {return "1px";}		});
 	
 			link.enter().insert("path", "g")
 			  .attr("class", "link")
@@ -320,6 +352,8 @@
 			  });
 			  
 			   // Transition links to their new position.
+			
+			
 			link.transition()
 			  .duration(duration)
 			  .attr("d", rightAngleDiagonal);
@@ -331,7 +365,7 @@
 				var o = {x: source.x, y: source.y};
 				return rightAngleDiagonal({source: o, target: o});
 			  })
-			  .remove();
+			  //.remove();
 
 			// Stash the old positions for transition.
 			nodes.forEach(function(d) {
