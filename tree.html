@@ -28,6 +28,10 @@
       font-size:12px;
     }
 
+    .node {
+	  cursor: pointer;
+	}
+
     .link_bold {
   		stroke: #000 !important;
   		stroke-width: 2px;
@@ -47,6 +51,14 @@
       Taxonomy: <span id="name"></span>
     </div>
 
+    <!-- search bar div -->
+    <div id="searchBar">
+        <p>
+            Enter a Species Name: <input type="text" placeholder="Enter name" id="nameInput">
+            <button id="searchButton">Search</button>
+        </p>
+    </div>
+
 <!-- Copyright 2011 Jason Davies https://github.com/jasondavies/newick.js -->
 <script>function parseNewick(a){for(var e=[],r={},s=a.split(/\s*(;|\(|\)|,|:)\s*/),t=0;t<s.length;t++){var n=s[t];switch(n){case"(":var c={};r.branchset=[c],e.push(r),r=c;break;case",":var c={};e[e.length-1].branchset.push(c),r=c;break;case")":r=e.pop();break;case":":break;default:var h=s[t-1];")"==h||"("==h||","==h?r.name=n:":"==h&&(r.length=parseFloat(n))}}return r}</script>
 	
@@ -57,7 +69,8 @@
 		
 		var relatedNodes = []; // global variable for relatedness feature.
  		var lca; // last common ancenstor
-		
+		var foundSpecies = []; //for searching a taxonomical unit
+ 		var nodeArray; //a global array of all the nodes
 		
 		var vis = d3.select("body").append("svg")
 			.attr("width" , width)
@@ -261,10 +274,39 @@
 			lca = prior;
 			
 		}
+
+
+		//for the search bar
+		d3.select("#searchButton").on("click", function(){
+        	var name = document.getElementById("nameInput").value;
+        	
+        	foundSpecies = [];
+        	var tax;
+
+        	nodeArray.forEach(function(d){ //going through each of the nodes in tree
+        		tax = d.taxonomy;
+        		tax.forEach(function(f){ //going through each entry in taxonomy array
+	        		if(f == name){  //if has that name in it's taxonomy
+	        			foundSpecies.push(d.id);  //push it onto the array
+	        		}
+        		});
+        	});
+
+        	if(foundSpecies.length == 0){
+        		console.log("No matches found");
+        	}
+
+        	update(root);
+      	});
+
+
 		
 		var update = function (source) {
 		
 			var nodes = tree.nodes(root);
+
+			nodeArray = nodes;
+
 			adjustLength(nodes[0], 0);
 					
 			var links = tree.links(nodes);
@@ -298,7 +340,7 @@
 	                  
 	                  tooltip.style({
 	                    left: (d.y - 60) + "px",
-	                    top: (d.x + 90 ) + "px",
+	                    top: (d.x + 120 ) + "px",
 	                  })
 	                  .classed("hidden", false);
 	               })
@@ -326,7 +368,17 @@
 							if (d.id == lca) {return 5;} else {return 2.5;}
 						})
 					.attr("fill", function (d) {
-						if (relatedNodes.indexOf(d) != -1 || d.id == lca) {return "red"; } else {return "dodgerblue";}
+						//making selected nodes and their lca node red, all others blue
+						if (relatedNodes.indexOf(d) != -1 || d.id == lca) {
+							return "red"; 
+						} 
+						//for species found in the search bar
+						else if(foundSpecies.indexOf(d.id) != -1 && foundSpecies.length == 1){
+							return "darkorchid"; 
+						}
+						else {
+							return "dodgerblue";
+						}
 					});
     
 			nodeUpdate.select("text")
@@ -341,17 +393,25 @@
 			  .duration(duration)
 			  .attr("transform", function(d) {return "translate(" + source.y + "," + source.x + ")"; });
 			  //.remove();
+
 			// make circle really small 
 			nodeExit.select("circle")
 			  .attr("r", 1e-6);
+
 			// make text invisible
 			nodeExit.select("text")
 			  .style("fill-opacity", 1e-6);
+
 			// update the links
 			var link = vis.selectAll("path.link")
 				.data(links, function(d) { return d.target.id; })
 				.attr("stroke", function(d) { 
-					if(d.target.in_path) { return "red";} else {return "black";}		})
+					if(d.target.in_path) { 
+						return "red";
+					}
+					else if(foundSpecies.indexOf(d.source.id) != -1){
+						return "darkorchid"; 
+					} else {return "black";}		})
 				.attr("stroke-width", function(d) { 
 					if(d.target.in_path) { return "2px";} else {return "1px";}		});
 	
@@ -380,8 +440,8 @@
 
 			// Stash the old positions for transition.
 			nodes.forEach(function(d) {
-			d.x0 = d.x;
-			d.y0 = d.y;
+				d.x0 = d.x;
+				d.y0 = d.y;
 			});
 			
 		};
