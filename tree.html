@@ -57,12 +57,14 @@
 		
 		var relatedNodes = []; // global variable for relatedness feature.
  		var lca; // last common ancenstor
-
+		
+		
 		var vis = d3.select("body").append("svg")
 			.attr("width" , width)
 			.attr("height", height)
 			.append("g")
 				.attr("transform", "translate(50, 50)");
+				
 	d3.csv("Euk.tree.annotations.csv", function (annotations) {	 
 		console.log(annotations)
 		d3.text("Euk.txt", function(error, euk) {
@@ -84,7 +86,7 @@
 				});
 				//return "";
 			};
-			
+		// puts annotated info into the nodes;	
 		var traverse = function(root_node){
 			//console.log(root_node);
 			var leaves = [];
@@ -134,7 +136,6 @@
 		traverse(root);
 		console.log(root);
 		
-				
 		// This changes the y values to be based off of the actual relatedness distance
 		// also an offset seemed potentially helpful, so it's there.
 		function adjustLength(n, offset) {
@@ -214,12 +215,22 @@
 			leaf.ancestors = ancestors;
 			console.log(ancestors);
 		}
-		
+		// looks through ancestors and sets them as in the path, until get to the LCA
 		function traverseAncestors(leaf, set_inpath){
-			while (leaf.id != lca) {
-				//console.log(leaf);
-				leaf.in_path = set_inpath;
+			// we have to clear the path out regardless
+			var temp = leaf;
+			while (leaf.id != 0) {
+				leaf.in_path = false;
 				leaf = leaf.parent;
+			
+			}
+			leaf = temp;
+			if (set_inpath) {
+				while (leaf.id != lca) {
+					//console.log(leaf);
+					leaf.in_path = true;
+					leaf = leaf.parent;
+				}
 			}
 		}
 		
@@ -255,7 +266,7 @@
 		
 			var nodes = tree.nodes(root);
 			adjustLength(nodes[0], 0);
-			
+					
 			var links = tree.links(nodes);
 				vis.selectAll(".link")
 				.data(links)
