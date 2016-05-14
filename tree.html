@@ -40,11 +40,67 @@
 	.link_extend_bold {
   		stroke-opacity: .6;
 	}
+
+	#searchBar{
+		position: absolute;
+		margin-left: 3em;
+	}
+
+	#instructions{
+		margin-left: 3em;
+	}
+
+	h1{
+      	margin:0px;
+        font-family:sans-serif;
+        font-size:28px;
+        text-align:center;
+    }
+
+    h2{
+        margin:5px;
+        font-family:sans-serif;
+        font-size:18px;
+        text-align:center;
+    }
+
+    h3{
+        margin:5px;
+        font-family:sans-serif;
+        font-size:14px;
+        text-align:center;
+    }
+
+    h5{
+        font-family:sans-serif;
+        font-size:13px;
+    }
+
     </style>
 
     <script src="http://d3js.org/d3.v3.min.js" type="text/javascript"></script>
     <script src="newick.js" type="text/javascript"></script>
 	<body>
+	<div>
+		<h1>
+			The Eukaryotic Tree of Life
+		</h1>
+		<h2>
+			By Carter Merenstein and Hanna Nowicki
+		</h2>
+		<h3>
+			Information Visualization Final Project
+		</h3>
+	</div>
+
+	<div id="instructions">
+		<h4> 
+			Instructions
+		</h4>
+		<h5>
+			Blah Blah Blah
+		</h5>
+	</div>
 
     <!-- tooltip div -->
     <div id="tooltip" class="hidden">
@@ -54,7 +110,7 @@
     <!-- search bar div -->
     <div id="searchBar">
         <p>
-            Enter a Species Name: <input type="text" placeholder="Enter name" id="nameInput">
+            Enter a Species Name to Search: <input type="text" placeholder="Enter name" id="nameInput">
             <button id="searchButton">Search</button>
         </p>
     </div>
