@@ -5,17 +5,27 @@
     <title></title>
 
     <style>
+    .axis text{
+      font-family:sans-serif;
+      font-size:11px;
+    }
 
-    #tooltip{
-    position:absolute;
-    width:auto;
-	max-width: 400px;
-    height:auto;
-    padding:10px;
-    background-color:white;
-    border-radius:10px;
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.4);
+    .axis path,
+    .axis line{
+      fill:none;
+      stroke:gray;
+      shape-rendering: crisp-edges;
+    }
 
+/*    #tooltip{
+      position:absolute;
+      width:auto;
+	  max-width: 400px;
+      height:auto;
+      padding:10px;
+      background-color:white;
+      border-radius:10px;
+      box-shadow: 4px 4px 10px rgba(0,0,0,0.4);
     }
 
     #tooltip.hidden{
@@ -26,7 +36,7 @@
       margin:0px;
       font-family:sans-serif;
       font-size:12px;
-    }
+    }*/
 
     .node {
 	  cursor: pointer;
@@ -42,7 +52,6 @@
 	}
 
 	#searchBar{
-		position: absolute;
 		margin-left: 3em;
 	}
 
@@ -76,6 +85,36 @@
         font-size:13px;
     }
 
+	#visDiv{
+		background-color: #FBE7E3;
+		margin-left: 30px;
+		float:left;
+		border: 1px solid black;
+/*		width:900px;
+*/	}
+
+	#barchartDiv{
+		margin:30px;
+		margin-left: 30px;
+		float:left;
+		width:550px;
+		height:650px;
+	}
+
+	#tooltip{
+		margin:30px;
+		margin-left: 30px;
+		width: 550px;
+		height: 170px;
+		position: static;
+		float:right;
+	}
+
+	#chartTitle{
+		text-align: center;
+		font-size: 20px;
+	}
+
     </style>
 
     <script src="http://d3js.org/d3.v3.min.js" type="text/javascript"></script>
@@ -98,44 +137,76 @@
 			Instructions
 		</h4>
 		<h5>
-			Blah Blah Blah
+			To collapse the tree, click on an internal node. To search the position of a specific species, or to find all species that share a taxonomical feature, enter that into the search box and click the search button or press the enter key. The found nodes will turn purple. The search is case sensitive. To highlight the path to the last common ancestor shared between a number of nodes, click on any number of leaves. Click on a selected node to de-select it. Hover over a node to get more information about that species' taxonomy. When leaf nodes are selected, the bar chart entitled "Distance from the Last Common Ancestor" will show how much each of the selected species have diverged from the last common ancestor between them.  
 		</h5>
+		<hr>
+		
 	</div>
 
-    <!-- tooltip div -->
-    <div id="tooltip" class="hidden">
-      Taxonomy: <span id="name"></span>
-    </div>
+
 
     <!-- search bar div -->
     <div id="searchBar">
         <p>
-            Enter a Species Name to Search: <input type="text" placeholder="Enter name" id="nameInput">
+            Enter a Species Name to Search: <input type="text" placeholder="Enter name" id="nameInput" onkeydown = "if (event.keyCode == 13){
+                        document.getElementById('searchButton').click()}">
             <button id="searchButton">Search</button>
+            <button id="zoomReset">Clear Search</button>
         </p>
     </div>
+
+	<!-- tooltip div -->
+    <div id="tooltip" class="hidden">
+      Taxonomy: <span id="name"></span><br>
+      Steps from the root: <span id="depth"></span>
+    </div>
+
 
 <!-- Copyright 2011 Jason Davies https://github.com/jasondavies/newick.js -->
 <script>function parseNewick(a){for(var e=[],r={},s=a.split(/\s*(;|\(|\)|,|:)\s*/),t=0;t<s.length;t++){var n=s[t];switch(n){case"(":var c={};r.branchset=[c],e.push(r),r=c;break;case",":var c={};e[e.length-1].branchset.push(c),r=c;break;case")":r=e.pop();break;case":":break;default:var h=s[t-1];")"==h||"("==h||","==h?r.name=n:":"==h&&(r.length=parseFloat(n))}}return r}</script>
 	
     <script>
-		var width = 2000; // determines height of tree.
-		var height = 2000;   
-		var duration = 700;
+		var width = 1200; // determines height of tree.
+		var height = 2200; 
+		var treeHeight = 1200;
+		var treeWidth = 2000;
+		var duration = 1300;
 		
 		var relatedNodes = []; // global variable for relatedness feature.
  		var lca; // last common ancenstor
 		var foundSpecies = []; //for searching a taxonomical unit
  		var nodeArray; //a global array of all the nodes
 		
+		function zoom() {
+			vis.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+		}
+
+		// define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
+		var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
+
+
+		//the svg for the main tree
 		var vis = d3.select("body").append("svg")
 			.attr("width" , width)
 			.attr("height", height)
+			.attr("id", "visDiv")
+			.call(zoomListener)
 			.append("g")
 				.attr("transform", "translate(50, 50)");
-				
+		
+ 		
+ 		//svg for the barchart
+		var barchart = d3.select("body").append("svg")
+			.attr("width" , 400)
+			.attr("height", 300)
+			.attr("id", "barchartDiv");
+
+		var chart = barchart.append("g")
+			.attr("transform", "translate(50, 50)");
+
+
 	d3.csv("Euk.tree.annotations.csv", function (annotations) {	 
-		console.log(annotations)
+		//console.log(annotations)
 		d3.text("Euk.txt", function(error, euk) {
 			if (error) throw error;
 		  
@@ -155,13 +226,14 @@
 				});
 				//return "";
 			};
-		// puts annotated info into the nodes;	
+
+		/*Puts annotated information into the nodes.*/
 		var traverse = function(root_node){
 			//console.log(root_node);
 			var leaves = [];
 			var commonTaxonomy = [];
 			var commonTaxonomyStr = "";
-			root_node.children = root_node.branchset
+			root_node.children = root_node.branchset;
 			if (typeof root_node.branchset == "undefined") {
 				findSpecies(root_node);
 				return root_node.taxonomy;
@@ -190,23 +262,48 @@
 			root_node.taxonomy = commonTaxonomy;
 			root_node.species = commonTaxonomy[commonTaxonomy.length - 1];
 			root_node.taxonomyStr = commonTaxonomyStr;
-			console.log(commonTaxonomy);
+			//console.log(commonTaxonomy);
 			return commonTaxonomy;
 		};
+
 		
 		var tree = d3.layout.cluster()
-			.size([width-100, height-100]);
+			.size([treeWidth, treeHeight]);
 			//.children(function(d) { return d.branchset; });
 		var root = parseNewick(euk);
-		console.log(root);
+		//console.log(root);
 		root.parent = {x:0, y:0};
-		console.log(root);
+		root.totalLength = 0;
+
+
+		/*
+		Gets the total length of each node from the root (totalLength is this total 
+		length, and length is the distance from the parent node).
+		*/
+		var getTotalLength = function(node){
+			//var totalLength = 0;
+			if(typeof node.branchset != "undefined"){
+				node.branchset.forEach(function (d){
+					// console.log(d);
+					// console.log(d.length);
+					// console.log(node.length);
+
+					d.totalLength = d.length + node.totalLength;
+					getTotalLength(d);
+				});
+			}
+
+		}
+
 
 		traverse(root);
-		console.log(root);
+		//console.log(root);
+
+		//assigns the totalLength values in each of the nodes
+		getTotalLength(root);
 		
-		// This changes the y values to be based off of the actual relatedness distance
-		// also an offset seemed potentially helpful, so it's there.
+		/*This changes the y values to be based off of the actual relatedness distance.
+		Also an offset seemed potentially helpful, so it's there.*/
 		function adjustLength(n, offset) {
 			  if (n.length != null) offset += n.length * 400;
 			  n.y = offset;
@@ -230,6 +327,11 @@
 			}
 		}
 		
+		/*
+		Describes how to handle clicks. If an internal node (a node with children) is clicked on, 
+		it will collapse the branches following this node. If a leaf node is clicked, the node 
+		will be highlighted or unhighlighted.
+		*/
 		function click(d){
 			// this part is for the collapsing
 			if (d.children) {
@@ -245,13 +347,12 @@
 					relatedNodes.push(d);
 				}else{
 					relatedNodes.splice(nodeIndex, 1);
-					traverseAncestors(d, false); // this is for dehighlighting
-					
+					traverseAncestors(d, false); // this is for unhighlighting
 				}
-
 			}
 			if (relatedNodes.length > 1) {
 				colorRelated();
+				drawChart();
 				relatedNodes.forEach(function (leaf) {
 					traverseAncestors(leaf, true);
 					});
@@ -282,7 +383,7 @@
 				temp = temp.parent;
 			}
 			leaf.ancestors = ancestors;
-			console.log(ancestors);
+			//console.log(ancestors);
 		}
 		// looks through ancestors and sets them as in the path, until get to the LCA
 		function traverseAncestors(leaf, set_inpath){
@@ -303,7 +404,7 @@
 			}
 		}
 		
-		// This is poorly named. It really just sets the LCA
+		/*Sets the lca value with the id of the least common ancestor node.*/
 		function colorRelated() {
 			relatedNodes.forEach(function (d) {
 				makeAncestors(d);
@@ -311,11 +412,11 @@
 			
 			var prior = 0;
 			var one_node_ancestors = relatedNodes[0].ancestors;
-			console.log(one_node_ancestors);
+			//console.log(one_node_ancestors);
 			var j = 0;
 			while (j < 25) { // arbitrary number, deeper than all leaves
 				relatedNodes.slice(1,relatedNodes.length).forEach(function(d){
-					console.log(d.ancestors[j] + "  " + one_node_ancestors[j]);
+					//console.log(d.ancestors[j] + "  " + one_node_ancestors[j]);
 					
 					if (d.ancestors[j] != one_node_ancestors[j]){
 						j = 26; // to break out of the while
@@ -327,9 +428,109 @@
 				j++;
 				//console.log(prior);
 			}
-			lca = prior;
-			
+			lca = prior;			
 		}
+
+
+		/*
+		Draws a bar chart that shows the distance from the last common ancestor of the node that are selected in the tree. This is helpful because it shows how much each selected node has diverged from the last common ancestor relative to the other nodes. You can hover over the bars to get the value displayed. If only one node is selected, the total distance from the root is displayed. 
+		*/
+		var drawChart = function(){
+
+			// console.log("relatednodes");
+			// console.log(relatedNodes);
+
+			//if there is no lca, the chart will show the total length of that node
+			var lcaLength = 0;
+
+			//getting the total length of the lca node
+			nodeArray.forEach(function(d){
+				if(d.id == lca){
+					lcaLength = d.totalLength;
+				}
+			});
+
+      		var margins = {top:0, bottom: 90, left: 50, right:0};
+      		var padding = 15;
+
+			var height = 300;
+			var width = 500;
+
+			var chartWidth = width - margins.left - margins.right;
+      		var chartHeight = height - margins.top - margins.bottom;
+
+			var xScale = d3.scale.ordinal().rangeRoundBands([0, chartWidth-padding], 0.15);
+      		var yScale = d3.scale.linear().range([chartHeight, padding]);
+
+        	xScale.domain(relatedNodes.map(function(d){return d.species;}));
+        	yScale.domain([0, d3.max(relatedNodes, function(d){return +(d.totalLength-lcaLength);})]);
+
+        	chart.selectAll("rect").remove();
+        	chart.selectAll(".axis").remove();
+        	chart.selectAll("#chartTitle").remove();
+
+        	chart.append("text").text("Distance from Last Common Ancestor").attr("id","chartTitle");
+
+        	var bars = chart.selectAll("rect")
+        		.data(relatedNodes)
+ 
+			bars.enter().append('rect')
+				.attr({x:function(d){return xScale(d.species);},
+						y:function(d){return yScale(+(d.totalLength-lcaLength));},  //d.depth
+						width:xScale.rangeBand(),
+						height:function(d){return chartHeight - yScale(+(d.totalLength-lcaLength));},
+						class: "bar"
+				})
+				.style("fill", "dodgerblue")
+				//to give a tooltip with the relative length
+				.append("svg:title")
+				.text(function(d){return (d.totalLength-lcaLength);});
+
+        
+			//drawing the axes
+	        var xAxis = d3.svg.axis()
+	          .scale(xScale)
+	          .orient("bottom");
+
+	        chart.append("g")
+	          .attr("class","axis")
+	          .attr("transform", "translate(0, " + chartHeight+")")
+	          .call(xAxis)
+	          .selectAll("text")
+	           .attr("transform", function(d) {
+                return "rotate(-45)translate(-60, 0)" 
+                })
+	          .append("text")
+	          .attr({
+	            "x":chartWidth/2,
+	            "y":margins.bottom/2.5,
+	            "text-anchor":"middle" 
+	          })
+	          .text("Species");
+
+	        // chart.selectAll("#xAxis text")
+         //      .attr("transform", function(d){
+         //      return "translate(" + this.getBBox().height*-2 + "," + this.getBBox().height*+3 + ")rotate(-45)";
+         //    })
+
+	          var yAxis = d3.svg.axis()
+	            .scale(yScale)
+	            .orient("left");
+
+	         
+	          chart.append("g")
+	            .attr("class","axis")
+	            .call(yAxis)
+	            .append("text")
+	            .attr({
+	              "x":-chartHeight/2,
+	              "y":3 * -margins.left/4,
+	              "text-anchor":"middle",
+	              "transform" : "rotate(-90)"
+	            })
+	            .text("Distance from Last Common Ancestor");
+		}
+
 
 
 		//for the search bar
@@ -349,33 +550,50 @@
         	});
 
         	if(foundSpecies.length == 0){
-        		console.log("No matches found");
+        		alert("No matches found");
         	}
 
         	update(root);
       	});
 
 
-		
+		d3.select("#zoomReset").on("click", function(){
+			zoomListener.translate([0,0]).scale(1);
+			foundSpecies = [];
+
+
+			update(root);
+			//console.log("reset search");
+		});
+
+
+
 		var update = function (source) {
+
 		
 			var nodes = tree.nodes(root);
 
 			nodeArray = nodes;
+			//console.log(nodeArray);
+
+			// console.log('relatednodes in update');
+			// console.log(relatedNodes);
+
+			//if(relatedNodes.length > 1){
+				drawChart();
+			//}
 
 			adjustLength(nodes[0], 0);
 					
 			var links = tree.links(nodes);
 				vis.selectAll(".link")
-				.data(links)
+				.data(links, function(d){ return d.target.id;})
 				.enter()
 				.append("path")
 				.attr("class", "link")
 				.attr("fill", "none")
 				.attr("stroke", "black")
-				.attr("d", rightAngleDiagonal)
-				.on("mouseover", bolded(true))   
-				.on("mouseout", bolded(false));
+				.attr("d", rightAngleDiagonal);
 			
 			var node = vis.selectAll("g.node")
 				.data(nodes, function(d, i) { return d.id || (d.id = i); });
@@ -393,10 +611,11 @@
 				      var tooltip = d3.select("#tooltip");
 	                 
 	                  d3.select("#name").text(d.taxonomyStr);   //d.name or something
-	                  
+	                  d3.select("#depth").text(d.depth);
+
 	                  tooltip.style({
 	                    left: (d.y - 60) + "px",
-	                    top: (d.x + 120 ) + "px",
+	                    top: (d.x + 300 ) + "px",
 	                  })
 	                  .classed("hidden", false);
 	               })
@@ -412,7 +631,7 @@
 			nodeEnter.append("text")
 				.attr("dx", 5)
 				.attr("dy", 3)
-				.style("font-size", "10px")
+				.style("font-size", "8px")
 				.text(function (d) {return name(d)});
 				
 			var nodeUpdate = node.transition()
@@ -469,18 +688,29 @@
 						return "darkorchid"; 
 					} else {return "black";}		})
 				.attr("stroke-width", function(d) { 
-					if(d.target.in_path) { return "2px";} else {return "1px";}		});
+					if(d.target.in_path) { return "2px";} else {return "1px";}});
 	
 			link.enter().insert("path", "g")
 			  .attr("class", "link")
 			  .attr("d", function(d) {
-				var o = {x: source.x0, y: source.y0};
+				var o = {x: d.source.x, y: d.source.y};
 				return rightAngleDiagonal({source: o, target: o});
-			  });
+			  })
+			  .attr("stroke", function(d) { 
+					if(d.target.in_path) { 
+						return "red";
+					}
+					else if(foundSpecies.indexOf(d.source.id) != -1){
+						return "darkorchid"; 
+					} else {return "black";}		})
+				.attr("stroke-width", function(d) { 
+					if(d.target.in_path) { return "2px";} else {return "1px";}})
+				.attr("fill", "none");
+			  // .style("fill", "none")
+			  // .style("stroke", "black");  //we need to do something about this TODO
 			  
-			   // Transition links to their new position.
-			
-			
+
+			// Transition links to their new position.
 			link.transition()
 			  .duration(duration)
 			  .attr("d", rightAngleDiagonal);
@@ -502,6 +732,8 @@
 			
 		};
 		update(root);
+
+
       });
 	});
     </script>
